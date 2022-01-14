@@ -1,6 +1,9 @@
-﻿using Basket.API.Entities;
+﻿using AutoMapper;
+using Basket.API.Entities;
 using Basket.API.GrpcServices;
 using Basket.API.Repositories;
+using EventBus.Messages.Events;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Threading.Tasks;
@@ -13,13 +16,19 @@ namespace Basket.API.Controllers
     {
         private readonly IBasketRepository basketRepository;
         private readonly DiscountGrpcService discountGrpcService;
+        private readonly IMapper mapper;
+        private readonly IPublishEndpoint publishEndpoint;
 
         public BasketController(
             IBasketRepository basketRepository,
-            DiscountGrpcService discountGrpcService)
+            DiscountGrpcService discountGrpcService,
+            IMapper mapper,
+            IPublishEndpoint publishEndpoint)
         {
             this.basketRepository = basketRepository;
             this.discountGrpcService = discountGrpcService;
+            this.mapper = mapper;
+            this.publishEndpoint = publishEndpoint;
         }
 
         [HttpGet("{username}", Name = "GetBasket")]
@@ -49,6 +58,24 @@ namespace Basket.API.Controllers
         {
             await basketRepository.DeleteBasket(username);
             return Ok();
+        }
+
+        [Route("[action]")]
+        [HttpPost]
+        [ProducesResponseType((int)HttpStatusCode.Accepted)]
+        [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+        public async Task<IActionResult> Checkout([FromBody] BasketCheckout basketCheckout)
+        {
+            var basket = await basketRepository.GetBasket(basketCheckout.UserName);
+            if (basket == null)
+                return BadRequest();
+
+            var eventMessage = mapper.Map<BasketCheckouEvent>(basketCheckout);
+            eventMessage.TotalPrice = basket.TotalPrice;
+            await publishEndpoint.Publish(eventMessage);
+
+            await basketRepository.DeleteBasket(basket.UserName);
+            return Accepted();
         }
     }
 }

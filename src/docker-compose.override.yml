@@ -27,14 +27,21 @@ services:
     volumes:
       - postgres_data:/var/lib/posrgresql/data/
 
-  orderdb:
-    container_name: orderdb
-    environment: 
-      SA_PASSWORD: "SwN12345678"
-      ACCEPT_EULA: "Y"
+  #orderdb:
+  #  container_name: orderdb
+  #  environment: 
+  #    SA_PASSWORD: "SwN12345678"
+  #    ACCEPT_EULA: "Y"
+  #  restart: always
+  #  ports:
+  #    - "6040:6040"
+
+  rabbitmq:
+    container_name: rabbitmq
     restart: always
     ports:
-      - "6040:1433"
+      - "5600:5600"
+      - "15672:15672"
 
   pgadmin:
     container_name: pgadmin
@@ -103,9 +110,9 @@ services:
     container_name: ordering.api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - "ConnectionStrings:OrderingConnectionString=SERVER=localhost,6040;Database=OrderDb;User Id=sa;password=SwN12345678"
-    depends_on: 
-      - orderdb
+      #- "ConnectionStrings:OrderingConnectionString=Data Source=.sqlserver2019;Initial Catalog=OrderDb;Integrated Security=True;MultipleActiveResultSets=true"
+    #depends_on: 
+    #  - orderdb
     ports:
       - "8504:80"
 
